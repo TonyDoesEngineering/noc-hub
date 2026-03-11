@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NOC Team Hub</title>
+  <meta name="description" content="NOC Team Hub — Team coordination, runbook, incident log, vendor monitor, shift handoff">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon">⚡</div>
+      <span class="brand-text">NOC Hub</span>
+    </div>
+    <div class="nav-links">
+      <button class="nav-btn active" data-tab="team" id="nav-team">
+        <span class="nav-icon">👥</span>
+        <span class="nav-label">Team Board</span>
+      </button>
+      <button class="nav-btn" data-tab="runbook" id="nav-runbook">
+        <span class="nav-icon">📖</span>
+        <span class="nav-label">Runbook</span>
+      </button>
+      <button class="nav-btn" data-tab="incidents" id="nav-incidents">
+        <span class="nav-icon">🚨</span>
+        <span class="nav-label">Incidents</span>
+      </button>
+      <button class="nav-btn" data-tab="vendors" id="nav-vendors">
+        <span class="nav-icon">📡</span>
+        <span class="nav-label">Vendors</span>
+      </button>
+      <button class="nav-btn" data-tab="handoff" id="nav-handoff">
+        <span class="nav-icon">🔄</span>
+        <span class="nav-label">Shift Handoff</span>
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <div class="clock" id="live-clock"></div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- ===== TEAM BOARD ===== -->
+    <section class="tab-content active" id="tab-team">
+      <div class="page-header">
+        <h1>Team Activity Board</h1>
+        <p class="page-desc">See what everyone is working on right now</p>
+      </div>
+      <div class="add-form card" id="team-form">
+        <div class="form-row">
+          <input type="text" id="team-name" placeholder="Your name" class="input">
+          <input type="text" id="team-activity" placeholder="What are you working on?" class="input flex-grow">
+          <select id="team-status" class="input">
+            <option value="working">🟢 Working</option>
+            <option value="investigating">🟡 Investigating</option>
+            <option value="blocked">🔴 Blocked</option>
+            <option value="break">⚪ On Break</option>
+          </select>
+          <button class="btn btn-primary" onclick="submitTeam()">Update</button>
+        </div>
+      </div>
+      <div class="entries-grid" id="team-entries"></div>
+    </section>
+
+    <!-- ===== RUNBOOK ===== -->
+    <section class="tab-content" id="tab-runbook">
+      <div class="page-header">
+        <h1>Runbook / Playbook</h1>
+        <p class="page-desc">Procedures and solved issues — check before troubleshooting</p>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="runbook-search" placeholder="Search runbook..." class="input search-input" oninput="filterRunbook()">
+        <div class="filter-group">
+          <button class="filter-btn active" data-filter="all" onclick="filterRunbookCat('all', this)">All</button>
+          <button class="filter-btn" data-filter="procedure" onclick="filterRunbookCat('procedure', this)">Procedures</button>
+          <button class="filter-btn" data-filter="known-fix" onclick="filterRunbookCat('known-fix', this)">Known Fixes</button>
+          <button class="filter-btn" data-filter="reference" onclick="filterRunbookCat('reference', this)">Reference</button>
+        </div>
+        <button class="btn btn-primary" onclick="toggleRunbookForm()">+ Add Entry</button>
+      </div>
+      <div class="add-form card hidden" id="runbook-form">
+        <div class="form-grid">
+          <input type="text" id="rb-title" placeholder="Title" class="input">
+          <select id="rb-category" class="input">
+            <option value="procedure">📋 Procedure</option>
+            <option value="known-fix">🔧 Known Fix</option>
+            <option value="reference">📝 Reference</option>
+          </select>
+          <input type="text" id="rb-author" placeholder="Your name" class="input">
+          <input type="text" id="rb-tags" placeholder="Tags (comma separated)" class="input">
+        </div>
+        <textarea id="rb-content" placeholder="Steps, details, solution..." class="input textarea" rows="6"></textarea>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="submitRunbook()">Save Entry</button>
+          <button class="btn btn-ghost" onclick="toggleRunbookForm()">Cancel</button>
+        </div>
+      </div>
+      <div class="entries-list" id="runbook-entries"></div>
+    </section>
+
+    <!-- ===== INCIDENTS ===== -->
+    <section class="tab-content" id="tab-incidents">
+      <div class="page-header">
+        <h1>Incident Log</h1>
+        <p class="page-desc">Log every issue so we never repeat the same mistake</p>
+      </div>
+      <div class="toolbar">
+        <input type="text" id="incident-search" placeholder="Search incidents..." class="input search-input" oninput="filterIncidents()">
+        <div class="filter-group">
+          <button class="filter-btn active" data-filter="all" onclick="filterIncidentStatus('all', this)">All</button>
+          <button class="filter-btn" data-filter="open" onclick="filterIncidentStatus('open', this)">Open</button>
+          <button class="filter-btn" data-filter="resolved" onclick="filterIncidentStatus('resolved', this)">Resolved</button>
+        </div>
+        <button class="btn btn-primary" onclick="toggleIncidentForm()">+ Log Incident</button>
+      </div>
+      <div class="add-form card hidden" id="incident-form">
+        <div class="form-grid">
+          <input type="text" id="inc-title" placeholder="Issue title" class="input">
+          <select id="inc-severity" class="input">
+            <option value="P1">🔴 P1 — Critical</option>
+            <option value="P2">🟠 P2 — High</option>
+            <option value="P3" selected>🟡 P3 — Medium</option>
+            <option value="P4">🟢 P4 — Low</option>
+          </select>
+          <input type="text" id="inc-affected" placeholder="Affected (vendor/customer)" class="input">
+          <input type="text" id="inc-reporter" placeholder="Reported by" class="input">
+        </div>
+        <textarea id="inc-desc" placeholder="What happened?" class="input textarea" rows="3"></textarea>
+        <textarea id="inc-rootcause" placeholder="Root cause (if known)" class="input textarea" rows="2"></textarea>
+        <textarea id="inc-fix" placeholder="Fix applied" class="input textarea" rows="2"></textarea>
+        <textarea id="inc-prevention" placeholder="How to prevent this in the future" class="input textarea" rows="2"></textarea>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="submitIncident()">Log Incident</button>
+          <button class="btn btn-ghost" onclick="toggleIncidentForm()">Cancel</button>
+        </div>
+      </div>
+      <div class="entries-list" id="incident-entries"></div>
+    </section>
+
+    <!-- ===== VENDORS ===== -->
+    <section class="tab-content" id="tab-vendors">
+      <div class="page-header">
+        <h1>Vendor Monitor</h1>
+        <p class="page-desc">Vendor connection status at a glance</p>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="toggleVendorForm()">+ Add Vendor</button>
+      </div>
+      <div class="add-form card hidden" id="vendor-form">
+        <div class="form-grid">
+          <input type="text" id="ven-name" placeholder="Vendor name" class="input">
+          <input type="text" id="ven-ip" placeholder="IP address" class="input">
+          <input type="text" id="ven-port" placeholder="Port (default 2775)" class="input" value="2775">
+          <select id="ven-status" class="input">
+            <option value="online">🟢 Online</option>
+            <option value="degraded">🟡 Degraded</option>
+            <option value="offline">🔴 Offline</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input type="text" id="ven-latency" placeholder="Latency (ms)" class="input">
+          <input type="text" id="ven-dlr" placeholder="DLR Rate (%)" class="input">
+        </div>
+        <textarea id="ven-notes" placeholder="Notes" class="input textarea" rows="2"></textarea>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="submitVendor()">Save Vendor</button>
+          <button class="btn btn-ghost" onclick="toggleVendorForm()">Cancel</button>
+        </div>
+      </div>
+      <div class="entries-grid vendor-grid" id="vendor-entries"></div>
+    </section>
+
+    <!-- ===== SHIFT HANDOFF ===== -->
+    <section class="tab-content" id="tab-handoff">
+      <div class="page-header">
+        <h1>Shift Handoff</h1>
+        <p class="page-desc">Hand over context to the next shift</p>
+      </div>
+      <div class="add-form card" id="handoff-form">
+        <div class="form-row">
+          <input type="text" id="ho-name" placeholder="Your name" class="input">
+          <input type="text" id="ho-time" placeholder="Shift time (e.g. 08:00-16:00)" class="input">
+        </div>
+        <textarea id="ho-active" placeholder="🔴 Active issues (still open, need attention)" class="input textarea" rows="3"></textarea>
+        <textarea id="ho-resolved" placeholder="✅ Resolved this shift" class="input textarea" rows="3"></textarea>
+        <textarea id="ho-alarms" placeholder="⚠️ Open alarms" class="input textarea" rows="2"></textarea>
+        <textarea id="ho-vendors" placeholder="📡 Vendor status notes" class="input textarea" rows="2"></textarea>
+        <textarea id="ho-notes" placeholder="📝 Notes for next shift" class="input textarea" rows="3"></textarea>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="submitHandoff()">Submit Handoff</button>
+        </div>
+      </div>
+      <h2 class="section-title">Previous Handoffs</h2>
+      <div class="entries-list" id="handoff-entries"></div>
+    </section>
+
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
