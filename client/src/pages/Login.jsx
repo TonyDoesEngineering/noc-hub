@@ -22,7 +22,7 @@ export default function Login({ onLogin }) {
           <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-accent-hover to-purple-400">
             NOC Hub
           </h1>
-          <p className="text-text-muted text-sm mt-1">Team operations center</p>
+          <p className="text-text-muted text-sm mt-1">network operations center</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card p-6">
