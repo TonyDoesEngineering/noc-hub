@@ -11,7 +11,9 @@ import Vendors from './pages/Vendors';
 import ShiftHandoff from './pages/ShiftHandoff';
 
 function App() {
-  const [user, setUser] = useState(() => localStorage.getItem('noc-user'));
+  const [user, setUser] = useState(() =>
+    localStorage.getItem('noc-user') || sessionStorage.getItem('noc-user') || null
+  );
 
   if (!user) {
     return <Login onLogin={setUser} />;
@@ -19,6 +21,7 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('noc-user');
+    sessionStorage.removeItem('noc-user');
     setUser(null);
   };
 

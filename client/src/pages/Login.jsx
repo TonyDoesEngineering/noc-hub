@@ -3,12 +3,18 @@ import { Zap } from 'lucide-react';
 
 export default function Login({ onLogin }) {
   const [name, setName] = useState('');
+  const [remember, setRemember] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    localStorage.setItem('noc-user', trimmed);
+    if (remember) {
+      localStorage.setItem('noc-user', trimmed);
+    } else {
+      localStorage.removeItem('noc-user');
+      sessionStorage.setItem('noc-user', trimmed);
+    }
     onLogin(trimmed);
   };
 
@@ -22,7 +28,7 @@ export default function Login({ onLogin }) {
           <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-accent-hover to-purple-400">
             NOC Hub
           </h1>
-          <p className="text-text-muted text-sm mt-1">network operations center</p>
+          <p className="text-text-muted text-sm mt-1">Team operations center</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card p-6">
@@ -38,6 +44,15 @@ export default function Login({ onLogin }) {
             autoFocus
             required
           />
+          <label className="flex items-center gap-2 mb-4 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={e => setRemember(e.target.checked)}
+              className="w-4 h-4 rounded border-border bg-bg-input text-accent focus:ring-accent/30 cursor-pointer"
+            />
+            <span className="text-sm text-text-secondary">Remember me</span>
+          </label>
           <button type="submit" className="btn btn-primary w-full py-3 text-base">
             Enter
           </button>
