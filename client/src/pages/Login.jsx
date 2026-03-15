@@ -9,12 +9,9 @@ export default function Login({ onLogin }) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (remember) {
-      localStorage.setItem('noc-user', trimmed);
-    } else {
-      localStorage.removeItem('noc-user');
-      sessionStorage.setItem('noc-user', trimmed);
-    }
+    localStorage.setItem('noc-user', trimmed);
+    localStorage.setItem('noc-persist', remember ? 'forever' : 'session');
+    sessionStorage.setItem('noc-active', '1');
     onLogin(trimmed);
   };
 
