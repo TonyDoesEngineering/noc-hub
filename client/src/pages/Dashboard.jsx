@@ -64,20 +64,9 @@ export default function Dashboard() {
 
   return (
     <div className="animate-fade-in max-w-6xl mx-auto pb-20">
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-white to-gray-400">Dashboard</h1>
-          <p className="text-sm text-text-muted mt-1">Live overview — everything auto-updates, no input needed</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <User size={16} className="text-text-muted" />
-          <input
-            placeholder="Your name"
-            className="input w-40 text-sm py-1.5"
-            value={userName}
-            onChange={e => setUserName(e.target.value)}
-          />
-        </div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-white to-gray-400">Dashboard</h1>
+        <p className="text-sm text-text-muted mt-1">Live overview — everything auto-updates, no input needed</p>
       </div>
 
       {/* Current Shift */}
