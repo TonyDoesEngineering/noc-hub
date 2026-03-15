@@ -48,6 +48,7 @@ export default function ShiftHandoff() {
   };
 
   const handleDelete = async (id) => {
+    if (!window.confirm('Delete this handoff?')) return;
     await fetch(`/api/handoffs/${id}`, { method: 'DELETE' });
   };
 

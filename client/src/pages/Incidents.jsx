@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useDataRefetch } from '../lib/socket.jsx';
+import { useToast } from '../components/Toast.jsx';
+import { MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function Incidents() {
   const [entries, setEntries] = useState([]);
@@ -8,6 +10,10 @@ export default function Incidents() {
   const [showForm, setShowForm] = useState(false);
   const [resolvingId, setResolvingId] = useState(null);
   const [resolveForm, setResolveForm] = useState({ fix_applied: '', root_cause: '', prevention: '' });
+  const [expandedId, setExpandedId] = useState(null);
+  const [updates, setUpdates] = useState({});
+  const [newComment, setNewComment] = useState('');
+  const toast = useToast();
 
   const savedName = localStorage.getItem('noc-user') || '';
   const [form, setForm] = useState({ title: '', severity: 'P3', description: '', reported_by: savedName });
@@ -18,6 +24,33 @@ export default function Incidents() {
   }, []);
 
   useDataRefetch('incidents', fetchIncidents);
+
+  const fetchUpdates = async (id) => {
+    const res = await fetch(`/api/incidents/${id}/updates`);
+    const data = await res.json();
+    setUpdates(prev => ({ ...prev, [id]: data }));
+  };
+
+  const toggleTimeline = (id) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(id);
+      fetchUpdates(id);
+    }
+  };
+
+  const handleAddComment = async (id) => {
+    if (!newComment.trim()) return;
+    await fetch(`/api/incidents/${id}/updates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ author: savedName || 'Unknown', content: newComment.trim() }),
+    });
+    setNewComment('');
+    fetchUpdates(id);
+    toast('Comment added');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,6 +63,7 @@ export default function Incidents() {
     });
     setForm({ ...form, title: '', description: '' });
     setShowForm(false);
+    toast('Incident reported');
   };
 
   const handleResolve = async (id) => {
@@ -41,6 +75,7 @@ export default function Incidents() {
     });
     setResolvingId(null);
     setResolveForm({ fix_applied: '', root_cause: '', prevention: '' });
+    toast('Incident resolved — fix saved to knowledge base');
   };
 
   const handleClaim = async (id) => {
@@ -52,10 +87,13 @@ export default function Incidents() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     });
+    toast('Incident claimed');
   };
 
   const handleDelete = async (id) => {
+    if (!window.confirm('Delete this incident? This cannot be undone.')) return;
     await fetch(`/api/incidents/${id}`, { method: 'DELETE' });
+    toast('Incident deleted', 'error');
   };
 
   const sevMap = {
@@ -75,6 +113,11 @@ export default function Incidents() {
     return d.toLocaleDateString();
   };
 
+  const updateIcon = (type) => {
+    const map = { created: '\u{1F534}', claimed: '\u{1F91A}', resolved: '\u2705', comment: '\u{1F4AC}' };
+    return map[type] || '\u{1F4AC}';
+  };
+
   const filtered = entries.filter(i => {
     if (filter !== 'all' && i.status !== filter) return false;
     const q = search.toLowerCase();
@@ -90,22 +133,14 @@ export default function Incidents() {
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <input
-          placeholder="Search incidents..."
-          className="input md:max-w-xs"
-          value={search} onChange={e => setSearch(e.target.value)}
-        />
+        <input placeholder="Search incidents..." className="input md:max-w-xs" value={search} onChange={e => setSearch(e.target.value)} />
         <div className="flex gap-2 flex-wrap">
           {['all', 'open', 'investigating', 'resolved'].map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
+            <button key={f} onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border capitalize ${
                 filter === f ? 'bg-accent border-accent text-white' : 'bg-bg-card border-border text-text-secondary hover:border-accent hover:text-white'
               }`}
-            >
-              {f}
-            </button>
+            >{f}</button>
           ))}
         </div>
         <button className="btn btn-primary ml-auto flex-shrink-0" onClick={() => setShowForm(!showForm)}>
@@ -113,7 +148,6 @@ export default function Incidents() {
         </button>
       </div>
 
-      {/* Simplified creation form — 3 fields + name */}
       {showForm && (
         <form onSubmit={handleSubmit} className="card mb-6 animate-fade-in border-accent/30">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
@@ -134,13 +168,17 @@ export default function Incidents() {
       )}
 
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-text-muted">No incidents found.</div>
+        <div className="text-center py-12 text-text-muted">
+          {filter === 'all' && !search ? 'No incidents yet — all clear.' : 'No incidents match your search.'}
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           {filtered.map(i => {
             const sev = sevMap[i.severity] || sevMap.P3;
             const isResolved = i.status === 'resolved';
             const isResolving = resolvingId === i.id;
+            const isExpanded = expandedId === i.id;
+            const timeline = updates[i.id] || [];
 
             return (
               <div key={i.id} className={`card border-l-4 ${sev.border} group`}>
@@ -168,16 +206,10 @@ export default function Incidents() {
                   </div>
                 )}
 
-                {/* Inline resolve form — expands on click, one required field */}
                 {isResolving && (
                   <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4 mb-3 animate-fade-in">
-                    <input
-                      placeholder="What fixed it? *"
-                      className="input mb-2"
-                      value={resolveForm.fix_applied}
-                      onChange={e => setResolveForm({...resolveForm, fix_applied: e.target.value})}
-                      autoFocus
-                    />
+                    <input placeholder="What fixed it? *" className="input mb-2" value={resolveForm.fix_applied}
+                      onChange={e => setResolveForm({...resolveForm, fix_applied: e.target.value})} autoFocus />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                       <input placeholder="Root cause (optional)" className="input" value={resolveForm.root_cause} onChange={e => setResolveForm({...resolveForm, root_cause: e.target.value})} />
                       <input placeholder="How to prevent (optional)" className="input" value={resolveForm.prevention} onChange={e => setResolveForm({...resolveForm, prevention: e.target.value})} />
@@ -187,6 +219,42 @@ export default function Incidents() {
                       <button onClick={() => setResolvingId(null)} className="btn btn-ghost text-sm">Cancel</button>
                     </div>
                     <div className="text-xs text-text-muted mt-2">The fix will auto-save to the knowledge base</div>
+                  </div>
+                )}
+
+                {/* Timeline section */}
+                {isExpanded && (
+                  <div className="border border-border/50 rounded-lg mb-3 animate-fade-in overflow-hidden">
+                    <div className="max-h-[300px] overflow-y-auto divide-y divide-border/30">
+                      {timeline.length === 0 ? (
+                        <div className="p-4 text-sm text-text-muted text-center">No updates yet</div>
+                      ) : (
+                        timeline.map((u, idx) => (
+                          <div key={idx} className="px-4 py-2.5 flex items-start gap-3 hover:bg-white/[0.02]">
+                            <span className="mt-0.5">{updateIcon(u.type)}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm">
+                                <span className="font-medium text-text-primary">{u.author}</span>
+                                <span className="text-text-muted ml-1">— {u.content}</span>
+                              </div>
+                              <div className="text-xs text-text-muted mt-0.5">{timeAgo(u.created_at)}</div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {!isResolved && (
+                      <div className="flex gap-2 p-3 border-t border-border/50 bg-bg-primary/50">
+                        <input
+                          placeholder="Add an update..."
+                          className="input flex-1 py-2 text-sm"
+                          value={newComment}
+                          onChange={e => setNewComment(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleAddComment(i.id)}
+                        />
+                        <button onClick={() => handleAddComment(i.id)} className="btn btn-primary text-sm px-3 py-2">Post</button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -200,19 +268,21 @@ export default function Incidents() {
                     <span className="mx-1">&bull;</span>{timeAgo(i.created_at)}
                     {i.resolved_at && <><span className="mx-1">&bull;</span>Resolved {timeAgo(i.resolved_at)}</>}
                   </span>
-                  <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {i.status === 'open' && (
-                      <button onClick={() => handleClaim(i.id)} className="text-blue-400 hover:text-blue-300 hover:underline">I'm on it</button>
-                    )}
-                    {!isResolved && !isResolving && (
-                      <button
-                        onClick={() => { setResolvingId(i.id); setResolveForm({ fix_applied: '', root_cause: '', prevention: '' }); }}
-                        className="text-green-400 hover:text-green-300 hover:underline"
-                      >
-                        Resolve
-                      </button>
-                    )}
-                    <button onClick={() => handleDelete(i.id)} className="text-red-400 hover:text-red-300 hover:underline">Delete</button>
+                  <div className="flex gap-3 items-center">
+                    <button onClick={() => toggleTimeline(i.id)} className="flex items-center gap-1 text-accent hover:text-accent-hover transition-colors">
+                      <MessageSquare size={13} />
+                      {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-3">
+                      {i.status === 'open' && (
+                        <button onClick={() => handleClaim(i.id)} className="text-blue-400 hover:text-blue-300 hover:underline">I'm on it</button>
+                      )}
+                      {!isResolved && !isResolving && (
+                        <button onClick={() => { setResolvingId(i.id); setResolveForm({ fix_applied: '', root_cause: '', prevention: '' }); }}
+                          className="text-green-400 hover:text-green-300 hover:underline">Resolve</button>
+                      )}
+                      <button onClick={() => handleDelete(i.id)} className="text-red-400 hover:text-red-300 hover:underline">Delete</button>
+                    </span>
                   </div>
                 </div>
               </div>

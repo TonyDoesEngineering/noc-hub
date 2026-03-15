@@ -126,6 +126,13 @@ async function initDb() {
     updated_at DATETIME DEFAULT (datetime('now'))
   )`);
 
+  db.run(`CREATE TABLE IF NOT EXISTS incident_updates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    incident_id INTEGER NOT NULL, author TEXT NOT NULL,
+    content TEXT NOT NULL, type TEXT DEFAULT 'comment',
+    created_at DATETIME DEFAULT (datetime('now'))
+  )`);
+
   db.run(`CREATE TABLE IF NOT EXISTS activity_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     type TEXT NOT NULL, actor TEXT DEFAULT 'System', summary TEXT NOT NULL,
@@ -227,6 +234,8 @@ app.post('/api/incidents', (req, res) => {
     [title, severity || 'P3', affected || '', description, reported_by]);
 
   const newId = db.exec('SELECT last_insert_rowid()')[0].values[0][0];
+  db.run('INSERT INTO incident_updates (incident_id, author, content, type) VALUES (?, ?, ?, ?)',
+    [newId, reported_by, `Reported this incident`, 'created']);
   logActivity('incident_created', reported_by, `Reported: ${title}`, 'incident', newId);
   saveDb(); notifyUpdate('incidents');
   res.json({ ok: true, id: newId });
@@ -244,6 +253,9 @@ app.put('/api/incidents/:id', (req, res) => {
       ['resolved', fix_applied || '', root_cause || '', prevention || '', resolvedAt, id]);
 
     const resolver = incident.claimed_by || incident.reported_by;
+    const resolveNote = fix_applied ? `Resolved — Fix: ${fix_applied}` : 'Resolved';
+    db.run('INSERT INTO incident_updates (incident_id, author, content, type) VALUES (?, ?, ?, ?)',
+      [id, resolver, resolveNote, 'resolved']);
     logActivity('incident_resolved', resolver, `Resolved: ${incident.title}`, 'incident', id);
 
     if (fix_applied) {
@@ -273,12 +285,30 @@ app.post('/api/incidents/:id/claim', (req, res) => {
   if (!incident) return res.status(404).json({ error: 'not found' });
 
   db.run("UPDATE incidents SET status='investigating', claimed_by=? WHERE id=?", [name, id]);
+  db.run('INSERT INTO incident_updates (incident_id, author, content, type) VALUES (?, ?, ?, ?)',
+    [id, name, `Claimed this incident — investigating`, 'claimed']);
   logActivity('incident_claimed', name, `Claimed: ${incident.title}`, 'incident', id);
   saveDb(); notifyUpdate('incidents');
   res.json({ ok: true });
 });
 
+app.get('/api/incidents/:id/updates', (req, res) => {
+  res.json(queryAll('SELECT * FROM incident_updates WHERE incident_id=? ORDER BY created_at ASC', [Number(req.params.id)]));
+});
+
+app.post('/api/incidents/:id/updates', (req, res) => {
+  const { author, content } = req.body;
+  const id = Number(req.params.id);
+  if (!content) return res.status(400).json({ error: 'content required' });
+  const name = author || localStorage?.getItem?.('noc-user') || 'Unknown';
+  db.run('INSERT INTO incident_updates (incident_id, author, content, type) VALUES (?, ?, ?, ?)',
+    [id, name, content, 'comment']);
+  saveDb(); notifyUpdate('incidents');
+  res.json({ ok: true });
+});
+
 app.delete('/api/incidents/:id', (req, res) => {
+  db.run('DELETE FROM incident_updates WHERE incident_id=?', [Number(req.params.id)]);
   db.run('DELETE FROM incidents WHERE id=?', [Number(req.params.id)]);
   saveDb(); notifyUpdate('incidents');
   res.json({ ok: true });

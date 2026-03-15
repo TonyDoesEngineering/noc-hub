@@ -31,6 +31,7 @@ export default function KnowledgeBase() {
   };
 
   const handleDelete = async (id) => {
+    if (!window.confirm('Delete this entry? This cannot be undone.')) return;
     await fetch(`/api/knowledge/${id}`, { method: 'DELETE' });
   };
 

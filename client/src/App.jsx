@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import { SocketProvider } from './lib/socket.jsx';
+import { ToastProvider } from './components/Toast.jsx';
+import Notifications from './components/Notifications.jsx';
 import Login from './pages/Login';
 
 import Dashboard from './pages/Dashboard';
@@ -24,15 +26,18 @@ function App() {
 
   return (
     <SocketProvider>
-      <Layout user={user} onLogout={handleLogout}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/incidents" element={<Incidents />} />
-          <Route path="/knowledge" element={<KnowledgeBase />} />
-          <Route path="/vendors" element={<Vendors />} />
-          <Route path="/handoff" element={<ShiftHandoff />} />
-        </Routes>
-      </Layout>
+      <ToastProvider>
+        <Notifications />
+        <Layout user={user} onLogout={handleLogout}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/incidents" element={<Incidents />} />
+            <Route path="/knowledge" element={<KnowledgeBase />} />
+            <Route path="/vendors" element={<Vendors />} />
+            <Route path="/handoff" element={<ShiftHandoff />} />
+          </Routes>
+        </Layout>
+      </ToastProvider>
     </SocketProvider>
   );
 }
